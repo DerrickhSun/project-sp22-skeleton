@@ -7,6 +7,7 @@ For usage, run `python3 solve.py --help`.
 
 import argparse
 from math import sqrt
+import math
 from pathlib import Path
 from typing import Callable, Dict
 
@@ -23,6 +24,17 @@ def solve_naive(instance: Instance) -> Solution:
         instance=instance,
         towers=instance.cities,
     )
+
+#Created by Derrick Sun
+#takes a single tower and a solution
+#returns the cost the single tower "sees" if in the solution
+#not intended to be used on towers not in the solution
+def tower_cost(point, sol):
+    penalties = 0
+    for i in sol.towers:
+        if point.distance_obj(i)<=sol.instance.penalty_radius and point.distance_obj(i)!=0:
+            penalties += 1
+    return 170*math.e**(0.17*penalties)
 
 
 def create_data_model(instance: Instance):
