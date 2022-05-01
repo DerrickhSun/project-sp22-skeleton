@@ -18,5 +18,6 @@ testpt2 = Point(2, 2)
 testpt3 = Point(10,10)
 points = [testpt1,testpt2,testpt3]
 inst = Instance(30,3,8,points)
-sol = Solution(points, inst)
-print(solve.tower_cost(testpt2, sol))
+sol = solve.solve_greedy(inst)
+dictionary = {0:1,1:1,2:3}
+print(sol)

@@ -25,10 +25,10 @@ def solve_naive(instance: Instance) -> Solution:
         towers=instance.cities,
     )
 
-#Created by Derrick Sun
 #takes a single tower and a solution
 #returns the cost the single tower "sees" if in the solution
 #not intended to be used on towers not in the solution
+#note that solution.py has a function for total cost
 def tower_cost(point, sol):
     penalties = 0
     for i in sol.towers:
@@ -36,12 +36,78 @@ def tower_cost(point, sol):
             penalties += 1
     return 170*math.e**(0.17*penalties)
 
+#given a point, generates the set of that point
+def generate_set(point: Point, instance: Instance):
+    result = []
+    for i in instance.cities:
+        if point.distance_obj(i) < instance.coverage_radius:
+            result.append(i)
+    return result
+
+#given dictionary, inverts it
+def invert_dict(dictionary):
+    try:
+        result = {}
+        for i in dictionary.items():
+            if i[1] not in result.keys():
+                result[i[1]] = [i[0]]
+            else:
+                result[i[1]].append(i[0])
+        return result
+    except: #handles the case where dict values are nonhashable
+        result = {} #uses frozenset - no changing afterwards!
+        for i in dictionary.items():
+            if frozenset(i[1]) not in result.keys():
+                result[frozenset(i[1])] = [i[0]]
+            else:
+                result[frozenset(i[1])].append(i[0])
+        return result
+
+
+
+def solve_greedy(instance: Instance) -> Solution:
+    points_to_sets = {}
+    for i in range(instance.grid_side_length):
+        for j in range(instance.grid_side_length):
+            pt = Point(i,j)
+            pt_set = generate_set(pt,instance)
+            if len(pt_set)>0: #ignore points that cover nothing
+                points_to_sets[pt] = pt_set
+    sets_to_points = invert_dict(points_to_sets)
+    sets = [list(i) for i in sets_to_points.keys()]
+
+    chosen_sets = []
+    unselected_cities = instance.cities
+    selected_cities = []
+    def unselected_cities_left(target):
+        count = 0
+        for i in target:
+            if i not in selected_cities:
+                count+=1
+        return count
+    while len(unselected_cities)>0:
+        #helper function
+        #takes in a set of cities and set of already covered cities
+        #returns number of cities in the set still uncovered
+        sets.sort(key = unselected_cities_left, reverse = True)
+        selected = sets[0]
+        chosen_sets.append(selected)
+        for i in selected:
+            if i in unselected_cities:
+                unselected_cities.remove(i)
+                selected_cities.append(i)
+    
+    chosen_towers = []
+    for i in chosen_sets:
+        chosen_towers.append(sets_to_points[frozenset(i)][0])
+    
+    return Solution(chosen_towers, instance)
 
 def create_data_model(instance: Instance):
     data = {}
-    d2 = instance.D**2
+    d2 = instance.D**2 #returns side length squared = size of grid
     data["num_vars"] = d2
-    data["num_constraints"] = instance.N
+    data["num_constraints"] = instance.N #returns number of cities
     data["bounds"] = [1] * d2
     data["constraint_coeffs"] = [[0] * d2 for _ in range(instance.N)]
 
@@ -57,12 +123,16 @@ def create_data_model(instance: Instance):
     return data
 
 
+
+#solves set cover via LP
 def solve_cover(instance: Instance) -> Solution:
-    data = create_data_model(instance)
+    data = create_data_model(instance) #creates a dict with instance information
     solver = pywraplp.Solver.CreateSolver("SCIP")
 
+    #creates inequalities for LP
+    #solver is from pywraplp, which is a tool to solve lp problems
     x = {}
-    for j in range(data["num_vars"]):
+    for j in range(data["num_vars"]): #data[num_vars] is the size of the grid
         x[j] = solver.IntVar(0, 1, "x[%i]" % j)
 
     infinity = solver.infinity()
@@ -80,6 +150,7 @@ def solve_cover(instance: Instance) -> Solution:
     if status != pywraplp.Solver.OPTIMAL:
         print(f"Solver not optimal: {status}", file=sys.stderr)
 
+    #rounds the results of LP
     towers = []
     for k in range(data["num_vars"]):
         if int(x[k].solution_value()) == 1:
