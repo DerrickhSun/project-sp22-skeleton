@@ -97,11 +97,47 @@ def solve_greedy(instance: Instance) -> Solution:
                 unselected_cities.remove(i)
                 selected_cities.append(i)
     
+
+
+    #just picks the first tower from each set
+    #can be improved by modifying to select points smartly
+    '''chosen_towers = []
+    for i in chosen_sets:
+        chosen_towers.append(sets_to_points[frozenset(i)][0])'''
+    
+    #attempt at smart selection
     chosen_towers = []
     for i in chosen_sets:
-        chosen_towers.append(sets_to_points[frozenset(i)][0])
+        cover = sets_to_points[frozenset(i)]
+        temp = Solution(chosen_towers, instance)
+        penalty = float('inf')
+        best_tower = 0
+        for possible_tower in cover:
+            if penalty > tower_cost(possible_tower, temp):
+                penalty = tower_cost(possible_tower, temp)
+                best_tower = possible_tower
+        chosen_towers.append(best_tower)
     
-    return Solution(chosen_towers, instance)
+    sol = Solution(chosen_towers, instance)
+    #"wiggling" points
+    #currently doesn't work, work-in-progress
+    '''for tower_index in range(len(chosen_towers)):
+        #this just creates the set
+        cover = points_to_sets[chosen_towers[tower_index]]
+        #this actually creates set of possible points
+        cover = sets_to_points[frozenset(cover)]
+        best_tower = chosen_towers[tower_index]
+        tower_cost = sol.penalty()
+        #trying other towers with same set
+        for tower_choice in cover:
+            chosen_towers[tower_index] = tower_choice
+            sol = Solution(chosen_towers, instance)
+            if tower_cost > sol.penalty():
+                best_tower = tower_choice
+        chosen_towers[tower_index] = best_tower
+        sol = Solution(chosen_towers,instance)'''
+
+    return sol
 
 def create_data_model(instance: Instance):
     data = {}
@@ -157,13 +193,14 @@ def solve_cover(instance: Instance) -> Solution:
             i = k // instance.D
             j = k % instance.D
             towers.append(Point(i, j))
-
+    print(Solution(instance=instance, towers=towers).valid())
     return Solution(instance=instance, towers=towers)
 
 
 SOLVERS: Dict[str, Callable[[Instance], Solution]] = {
     "naive": solve_naive,
     "cover": solve_cover,
+    "greedy": solve_greedy
 }
 
 

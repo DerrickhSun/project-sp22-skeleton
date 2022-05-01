@@ -1,8 +1,8 @@
-20 #number of cities
-30 #dimensions of the grid
-3 #radius per tower
-8 #penalty distance
-0 0#cities
+20
+30
+3
+8
+0 0
 1 0
 2 0
 3 0

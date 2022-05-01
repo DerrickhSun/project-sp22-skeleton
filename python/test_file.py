@@ -7,9 +7,10 @@ from typing import Callable, Dict
 from instance import Instance
 from point import Point
 from solution import Solution
+from solve_all import solve_one
 from file_wrappers import StdinFileWrapper, StdoutFileWrapper
 
-#from ortools.linear_solver import pywraplp
+from ortools.linear_solver import pywraplp
 import solve
 
 
@@ -21,3 +22,4 @@ inst = Instance(30,3,8,points)
 sol = solve.solve_greedy(inst)
 dictionary = {0:1,1:1,2:3}
 print(sol)
+print(sol.valid())
