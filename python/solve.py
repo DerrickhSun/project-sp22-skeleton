@@ -139,7 +139,7 @@ def solve_greedy(instance: Instance) -> Solution:
 
     return sol
 
-def dp_tower_finder(instance: Instance) -> Solution:
+def solve_dp(instance: Instance) -> Solution:
     
     points_to_sets = {}
     best_arrangements = dict()
@@ -153,52 +153,87 @@ def dp_tower_finder(instance: Instance) -> Solution:
     chosen_sets = []
     unselected_cities = instance.cities
     selected_cities = []
+    coords = []
 
+    for x in range(instance.grid_side_length):
+        for y in range(instance.grid_side_length):
+            coords.append((x,y))
 
-    def best_tower_arrangement(uncovered_cities):
+    # print(coords)
 
-        minimum_penalty = 1000000000000000000000000
+    def best_tower_arrangement(uncovered_cities, remaining_coords):
+
+        nonlocal best_arrangements
+        # print(len(uncovered_cities))
+        minimum_penalty = 10000000000000000000000000000000
         best_arrangement = None
 
-        if len(uncovered_cities) == 0:
-            best_arrangements[uncovered_cities] = set()
-            return set()
+        if len(uncovered_cities) == 0 or uncovered_cities == None:
+            best_arrangements[uncovered_cities] = []
+            return []
 
-        for x in range(instance.grid_side_length):
-            for y in range(instance.grid_side_length):
+        # print("Remaining points", remaining_coords)
+        # print("Remaining cities", uncovered_cities)
+        new_remaining_coords = remaining_coords[:]
 
-                uncovered_cities_new = set(uncovered_cities)
+        for x, y in remaining_coords:
 
-                new_towers = []
-                new_tower_point = Point()
-                new_tower_point.x = x
-                new_tower_point.y = y
+            print(len(new_remaining_coords))
+            
+            # if frozenset(unselected_cities) == uncovered_cities:
+            #     print(x,y)
 
-                for city in uncovered_cities:
-                    if city.distobj(new_tower_point) <= instance.coverage_radius:
-                        uncovered_cities_new.remove(city)
+            uncovered_cities_new = set(uncovered_cities)
+
+            new_tower_point = Point(x,y)
+            new_towers = [new_tower_point]
                 
-                new_towers.append(new_tower_point)
+            effective = False
+
+            for city in uncovered_cities:
+                if city.distance_sq(new_tower_point) <= instance.coverage_radius * instance.coverage_radius:
+                    uncovered_cities_new.remove(city)
+                    # if city.x == 22 and city.y == 29:
+                    #     print(new_tower_point)
+                    
+                    effective = True
+
+            new_remaining_coords.remove((x,y))
+
+            if effective:
                 
                 if frozenset(uncovered_cities_new) in best_arrangements.keys():
-                    new_towers.union(best_arrangements[frozenset(uncovered_cities_new)])
+                    new_towers.extend(best_arrangements[frozenset(uncovered_cities_new)])
                 else:
-                    new_towers.union(best_tower_arrangement(frozenset(uncovered_cities_new)))
+                    new_towers.extend(best_tower_arrangement(frozenset(uncovered_cities_new), new_remaining_coords[:]))
 
                 hypothetical_new_sol = Solution(new_towers, instance)
 
                 penalty = hypothetical_new_sol.penalty()
 
                 if penalty < minimum_penalty:
+                    # print(new_towers)
                     best_arrangement = new_towers
                     minimum_penalty = penalty
 
-        best_arrangements[uncovered_cities] = best_arrangement
+        #print("\nRemaining points", new_remaining_coords)
+        # print("Remaining cities", uncovered_cities_new)
 
+        # print(best_arrangement)
+        # print(uncovered_cities)
+        # print(remaining_coords)
+
+        if best_arrangement == None:
+            best_arrangements[uncovered_cities] = []
+            return []
+
+        best_arrangements[uncovered_cities] = best_arrangement[:]
+
+        # print("bunny")
         return best_arrangement
 
             
-    set_of_towers = best_tower_arrangement(frozenset(unselected_cities))
+    set_of_towers = best_tower_arrangement(frozenset(unselected_cities), coords)
 
     return Solution(set_of_towers, instance)
 
@@ -264,7 +299,8 @@ def solve_cover(instance: Instance) -> Solution:
 SOLVERS: Dict[str, Callable[[Instance], Solution]] = {
     "naive": solve_naive,
     "cover": solve_cover,
-    "greedy": solve_greedy
+    "greedy": solve_greedy,
+    "memoization": solve_dp
 }
 
 
