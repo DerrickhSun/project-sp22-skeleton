@@ -98,14 +98,6 @@ def solve_greedy(instance: Instance) -> Solution:
                 unselected_cities.remove(i)
                 selected_cities.append(i)
     
-
-
-    #just picks the first tower from each set
-    #can be improved by modifying to select points smartly
-    '''chosen_towers = []
-    for i in chosen_sets:
-        chosen_towers.append(sets_to_points[frozenset(i)][0])'''
-    
     #attempt at smart selection
     chosen_towers = []
     for i in chosen_sets:
@@ -120,25 +112,32 @@ def solve_greedy(instance: Instance) -> Solution:
         chosen_towers.append(best_tower)
     
     sol = Solution(chosen_towers, instance)
-    #"wiggling" points
-    #currently doesn't work, work-in-progress
-    '''for tower_index in range(len(chosen_towers)):
-        #this just creates the set
-        cover = points_to_sets[chosen_towers[tower_index]]
-        #this actually creates set of possible points
-        cover = sets_to_points[frozenset(cover)]
-        best_tower = chosen_towers[tower_index]
-        tower_cost = sol.penalty()
-        #trying other towers with same set
-        for tower_choice in cover:
-            chosen_towers[tower_index] = tower_choice
-            sol = Solution(chosen_towers, instance)
-            if tower_cost > sol.penalty():
-                best_tower = tower_choice
-        chosen_towers[tower_index] = best_tower
-        sol = Solution(chosen_towers,instance)'''
+    print(sol.penalty())
+
+    overlaps = {}
+    for tower in chosen_towers:
+        covered_cities = points_to_sets[tower]
+        for city in covered_cities:
+            if city in overlaps.keys():
+                overlaps[city] += 1
+            else:
+                overlaps[city] = 1
+    for tower in chosen_towers:
+        covered_cities = points_to_sets[tower]
+        count = 0
+        for city in covered_cities:
+            if overlaps[city]>1:
+                count += 1
+        if count == len(covered_cities):
+            for city in covered_cities:
+                overlaps[city] -= 1
+            chosen_towers.remove(tower)
+            
+
+    sol = Solution(chosen_towers, instance)
 
     return sol
+
 
 def dp_tower_finder(instance: Instance) -> Solution:
     
@@ -202,7 +201,6 @@ def dp_tower_finder(instance: Instance) -> Solution:
     set_of_towers = best_tower_arrangement(frozenset(unselected_cities))
 
     return Solution(set_of_towers, instance)
-
 
 def create_data_model(instance: Instance):
     data = {}
