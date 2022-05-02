@@ -139,6 +139,70 @@ def solve_greedy(instance: Instance) -> Solution:
 
     return sol
 
+def dp_tower_finder(instance: Instance) -> Solution:
+    
+    points_to_sets = {}
+    best_arrangements = dict()
+    best_score = dict()
+    
+    #frozen set: https://www.programiz.com/python-programming/methods/built-in/frozenset
+    #set methods: https://www.w3schools.com/python/python_ref_set.asp
+    #index methods: https://www.geeksforgeeks.org/python-maximum-minimum-elements-position-list/
+    #length of set: https://www.geeksforgeeks.org/find-the-length-of-a-set-in-python/
+
+    chosen_sets = []
+    unselected_cities = instance.cities
+    selected_cities = []
+
+
+    def best_tower_arrangement(uncovered_cities):
+
+        minimum_penalty = 1000000000000000000000000
+        best_arrangement = None
+
+        if len(uncovered_cities) == 0:
+            best_arrangements[uncovered_cities] = set()
+            return set()
+
+        for x in range(instance.grid_side_length):
+            for y in range(instance.grid_side_length):
+
+                uncovered_cities_new = set(uncovered_cities)
+
+                new_towers = []
+                new_tower_point = Point()
+                new_tower_point.x = x
+                new_tower_point.y = y
+
+                for city in uncovered_cities:
+                    if city.distobj(new_tower_point) <= instance.coverage_radius:
+                        uncovered_cities_new.remove(city)
+                
+                new_towers.append(new_tower_point)
+                
+                if frozenset(uncovered_cities_new) in best_arrangements.keys():
+                    new_towers.union(best_arrangements[frozenset(uncovered_cities_new)])
+                else:
+                    new_towers.union(best_tower_arrangement(frozenset(uncovered_cities_new)))
+
+                hypothetical_new_sol = Solution(new_towers, instance)
+
+                penalty = hypothetical_new_sol.penalty()
+
+                if penalty < minimum_penalty:
+                    best_arrangement = new_towers
+                    minimum_penalty = penalty
+
+        best_arrangements[uncovered_cities] = best_arrangement
+
+        return best_arrangement
+
+            
+    set_of_towers = best_tower_arrangement(frozenset(unselected_cities))
+
+    return Solution(set_of_towers, instance)
+
+
 def create_data_model(instance: Instance):
     data = {}
     d2 = instance.D**2 #returns side length squared = size of grid
