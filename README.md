@@ -5,6 +5,9 @@ We implemented the solvers `solve_cover` and `solve_greedy`. Please modify the
 file `solve_all.py` to import and use either of these solvers to run our
 solution. We made no changes to the framework provided by the starter code.
 
+Our linear programming solver requires the `ortools` library: `pip3 install
+ortools`.
+
 ## Requirements
 
 A Python skeleton is available in the `python` subdirectory. The Python
