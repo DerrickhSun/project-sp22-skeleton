@@ -1,5 +1,10 @@
 # Spring 2022 CS170 Project Skeleton
 
+## Derrick, Wilson, and Jason
+We implemented the solvers `solve_cover` and `solve_greedy`. Please modify the
+file `solve_all.py` to import and use either of these solvers to run our
+solution. We made no changes to the framework provided by the starter code.
+
 ## Requirements
 
 A Python skeleton is available in the `python` subdirectory. The Python
