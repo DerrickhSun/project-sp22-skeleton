@@ -9,6 +9,7 @@ import argparse
 from math import sqrt
 import math
 from pathlib import Path
+import random
 from typing import Callable, Dict
 
 from instance import Instance
@@ -97,14 +98,6 @@ def solve_greedy(instance: Instance) -> Solution:
                 unselected_cities.remove(i)
                 selected_cities.append(i)
     
-
-
-    #just picks the first tower from each set
-    #can be improved by modifying to select points smartly
-    '''chosen_towers = []
-    for i in chosen_sets:
-        chosen_towers.append(sets_to_points[frozenset(i)][0])'''
-    
     #attempt at smart selection
     chosen_towers = []
     for i in chosen_sets:
@@ -119,28 +112,34 @@ def solve_greedy(instance: Instance) -> Solution:
         chosen_towers.append(best_tower)
     
     sol = Solution(chosen_towers, instance)
-    #"wiggling" points
-    #currently doesn't work, work-in-progress
-    '''for tower_index in range(len(chosen_towers)):
-        #this just creates the set
-        cover = points_to_sets[chosen_towers[tower_index]]
-        #this actually creates set of possible points
-        cover = sets_to_points[frozenset(cover)]
-        best_tower = chosen_towers[tower_index]
-        tower_cost = sol.penalty()
-        #trying other towers with same set
-        for tower_choice in cover:
-            chosen_towers[tower_index] = tower_choice
-            sol = Solution(chosen_towers, instance)
-            if tower_cost > sol.penalty():
-                best_tower = tower_choice
-        chosen_towers[tower_index] = best_tower
-        sol = Solution(chosen_towers,instance)'''
+    print(sol.penalty())
+
+    overlaps = {}
+    for tower in chosen_towers:
+        covered_cities = points_to_sets[tower]
+        for city in covered_cities:
+            if city in overlaps.keys():
+                overlaps[city] += 1
+            else:
+                overlaps[city] = 1
+    for tower in chosen_towers:
+        covered_cities = points_to_sets[tower]
+        count = 0
+        for city in covered_cities:
+            if overlaps[city]>1:
+                count += 1
+        if count == len(covered_cities):
+            for city in covered_cities:
+                overlaps[city] -= 1
+            chosen_towers.remove(tower)
+            
+
+    sol = Solution(chosen_towers, instance)
 
     return sol
 
 def solve_dp(instance: Instance) -> Solution:
-    
+
     points_to_sets = {}
     best_arrangements = dict()
     best_score = dict()
@@ -237,7 +236,6 @@ def solve_dp(instance: Instance) -> Solution:
 
     return Solution(set_of_towers, instance)
 
-
 def create_data_model(instance: Instance):
     data = {}
     d2 = instance.D**2 #returns side length squared = size of grid
@@ -255,45 +253,47 @@ def create_data_model(instance: Instance):
                     constraint[i * instance.D + j] = 1
 
     data["obj_coeffs"] = [1] * d2
+    for i in range(d2):
+        data["obj_coeffs"][i] = random.randrange(1000000, 1000010)
     return data
 
-
-
-#solves set cover via LP
 def solve_cover(instance: Instance) -> Solution:
-    data = create_data_model(instance) #creates a dict with instance information
-    solver = pywraplp.Solver.CreateSolver("SCIP")
+    best_solution = None
+    for _ in range(100):
+        data = create_data_model(instance) #creates a dict with instance information
+        solver = pywraplp.Solver.CreateSolver("SCIP")
 
-    #creates inequalities for LP
-    #solver is from pywraplp, which is a tool to solve lp problems
-    x = {}
-    for j in range(data["num_vars"]): #data[num_vars] is the size of the grid
-        x[j] = solver.IntVar(0, 1, "x[%i]" % j)
+        #creates inequalities for LP
+        #solver is from pywraplp, which is a tool to solve lp problems
+        x = {}
+        for j in range(data["num_vars"]): #data[num_vars] is the size of the grid
+            x[j] = solver.IntVar(0, 1, "x[%i]" % j)
 
-    infinity = solver.infinity()
-    for i in range(data["num_constraints"]):
-        constraint = solver.RowConstraint(-infinity, -data["bounds"][i], "")
+        infinity = solver.infinity()
+        for i in range(data["num_constraints"]):
+            constraint = solver.RowConstraint(-infinity, -data["bounds"][i], "")
+            for j in range(data["num_vars"]):
+                constraint.SetCoefficient(x[j], -data["constraint_coeffs"][i][j])
+
+        objective = solver.Objective()
         for j in range(data["num_vars"]):
-            constraint.SetCoefficient(x[j], -data["constraint_coeffs"][i][j])
+            objective.SetCoefficient(x[j], data["obj_coeffs"][j])
+        objective.SetMinimization()
 
-    objective = solver.Objective()
-    for j in range(data["num_vars"]):
-        objective.SetCoefficient(x[j], data["obj_coeffs"][j])
-    objective.SetMinimization()
+        solver.Solve()
 
-    status = solver.Solve()
-    if status != pywraplp.Solver.OPTIMAL:
-        print(f"Solver not optimal: {status}", file=sys.stderr)
-
-    #rounds the results of LP
-    towers = []
-    for k in range(data["num_vars"]):
-        if int(x[k].solution_value()) == 1:
-            i = k // instance.D
-            j = k % instance.D
-            towers.append(Point(i, j))
-    print(Solution(instance=instance, towers=towers).valid())
-    return Solution(instance=instance, towers=towers)
+        #rounds the results of LP
+        towers = []
+        for k in range(data["num_vars"]):
+            if int(x[k].solution_value()) == 1:
+                i = k // instance.D
+                j = k % instance.D
+                towers.append(Point(i, j))
+        solution = Solution(instance=instance, towers=towers)
+        if not best_solution or solution.penalty() < best_solution.penalty():
+            best_solution = solution
+    assert best_solution is not None
+    return best_solution
 
 
 SOLVERS: Dict[str, Callable[[Instance], Solution]] = {
