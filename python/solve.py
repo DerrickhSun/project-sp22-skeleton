@@ -9,6 +9,7 @@ import argparse
 from math import sqrt
 import math
 from pathlib import Path
+import random
 from typing import Callable, Dict
 
 from instance import Instance
@@ -220,45 +221,47 @@ def create_data_model(instance: Instance):
                     constraint[i * instance.D + j] = 1
 
     data["obj_coeffs"] = [1] * d2
+    for i in range(d2):
+        data["obj_coeffs"][i] = random.randrange(1000000, 1000010)
     return data
 
-
-
-#solves set cover via LP
 def solve_cover(instance: Instance) -> Solution:
-    data = create_data_model(instance) #creates a dict with instance information
-    solver = pywraplp.Solver.CreateSolver("SCIP")
+    best_solution = None
+    for _ in range(100):
+        data = create_data_model(instance) #creates a dict with instance information
+        solver = pywraplp.Solver.CreateSolver("SCIP")
 
-    #creates inequalities for LP
-    #solver is from pywraplp, which is a tool to solve lp problems
-    x = {}
-    for j in range(data["num_vars"]): #data[num_vars] is the size of the grid
-        x[j] = solver.IntVar(0, 1, "x[%i]" % j)
+        #creates inequalities for LP
+        #solver is from pywraplp, which is a tool to solve lp problems
+        x = {}
+        for j in range(data["num_vars"]): #data[num_vars] is the size of the grid
+            x[j] = solver.IntVar(0, 1, "x[%i]" % j)
 
-    infinity = solver.infinity()
-    for i in range(data["num_constraints"]):
-        constraint = solver.RowConstraint(-infinity, -data["bounds"][i], "")
+        infinity = solver.infinity()
+        for i in range(data["num_constraints"]):
+            constraint = solver.RowConstraint(-infinity, -data["bounds"][i], "")
+            for j in range(data["num_vars"]):
+                constraint.SetCoefficient(x[j], -data["constraint_coeffs"][i][j])
+
+        objective = solver.Objective()
         for j in range(data["num_vars"]):
-            constraint.SetCoefficient(x[j], -data["constraint_coeffs"][i][j])
+            objective.SetCoefficient(x[j], data["obj_coeffs"][j])
+        objective.SetMinimization()
 
-    objective = solver.Objective()
-    for j in range(data["num_vars"]):
-        objective.SetCoefficient(x[j], data["obj_coeffs"][j])
-    objective.SetMinimization()
+        solver.Solve()
 
-    status = solver.Solve()
-    if status != pywraplp.Solver.OPTIMAL:
-        print(f"Solver not optimal: {status}", file=sys.stderr)
-
-    #rounds the results of LP
-    towers = []
-    for k in range(data["num_vars"]):
-        if int(x[k].solution_value()) == 1:
-            i = k // instance.D
-            j = k % instance.D
-            towers.append(Point(i, j))
-    print(Solution(instance=instance, towers=towers).valid())
-    return Solution(instance=instance, towers=towers)
+        #rounds the results of LP
+        towers = []
+        for k in range(data["num_vars"]):
+            if int(x[k].solution_value()) == 1:
+                i = k // instance.D
+                j = k % instance.D
+                towers.append(Point(i, j))
+        solution = Solution(instance=instance, towers=towers)
+        if not best_solution or solution.penalty() < best_solution.penalty():
+            best_solution = solution
+    assert best_solution is not None
+    return best_solution
 
 
 SOLVERS: Dict[str, Callable[[Instance], Solution]] = {
